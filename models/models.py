@@ -341,31 +341,53 @@ class DirectMessage(Base):
 
 class StudyRoom(Base):
     __tablename__ = "study_rooms"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(200), nullable=False)
-    description = Column(Text, nullable=True)
-    room_type = Column(String(20), nullable=False, default="text")
-    is_persistent = Column(Boolean, default=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    subject = Column(String(100), nullable=True, default="Other")
-    goal    = Column(Text, nullable=True)
-    notes   = Column(Text, nullable=True)
+    id             = Column(UUID, primary_key=True, default=uuid4)
+    name           = Column(String, nullable=False)
+    type           = Column(String, default="text")          # text | voice
+    subject        = Column(String, default="Other")
+    custom_subject = Column(String, nullable=True)           # NEW: if subject=="Other"
+    goal           = Column(String, nullable=True)
+    agenda         = Column(String, nullable=True)           # NEW: session agenda
+    persistence    = Column(String, default="temporary")     # temporary | persistent
+    privacy        = Column(String, default="public")        # NEW: public | private
+    invite_token   = Column(String, nullable=True)           # NEW: join link token
+    creator_id     = Column(UUID, ForeignKey("users.id"))
+    session_count  = Column(Integer, default=0)              # NEW: how many times started
+    is_deleted     = Column(Boolean, default=False)          # NEW: soft delete
+    created_at     = Column(DateTime, default=datetime.utcnow)
 
 
 class StudyRoomParticipant(Base):
     __tablename__ = "study_room_participants"
+    id        = Column(UUID, primary_key=True, default=uuid4)
+    room_id   = Column(UUID, ForeignKey("study_rooms.id"))
+    user_id   = Column(UUID, ForeignKey("users.id"))
+    status    = Column(String, default="studying")           # studying|break|done
+    goal      = Column(String, nullable=True)
+    is_co_creator = Column(Boolean, default=False)          # NEW
+    joined_at = Column(DateTime, default=datetime.utcnow)
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    room_id = Column(UUID(as_uuid=True), ForeignKey("study_rooms.id"), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    joined_at = Column(DateTime(timezone=True), server_default=func.now())
-    status = Column(String(20), nullable=True, default="studying")  # studying | break | done
-    goal   = Column(Text, nullable=True)
+class StudyRoomQuiz(Base):                                   # NEW table
+    __tablename__ = "study_room_quizzes"
+    id           = Column(UUID, primary_key=True, default=uuid4)
+    room_id      = Column(UUID, ForeignKey("study_rooms.id"))
+    creator_id   = Column(UUID, ForeignKey("users.id"))
+    title        = Column(String, nullable=False)
+    questions    = Column(JSON, nullable=False)              # [{q, options, answer}]
+    time_limit   = Column(Integer, default=300)             # seconds
+    extended_by  = Column(Integer, default=0)               # extra seconds added
+    is_active    = Column(Boolean, default=True)
+    result_shared= Column(Boolean, default=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
+class StudyRoomQuizAttempt(Base):                           # NEW table
+    __tablename__ = "study_room_quiz_attempts"
+    id         = Column(UUID, primary_key=True, default=uuid4)
+    quiz_id    = Column(UUID, ForeignKey("study_room_quizzes.id"))
+    user_id    = Column(UUID, ForeignKey("users.id"))
+    answers    = Column(JSON, nullable=False)               # {q_index: chosen_option}
+    score      = Column(Integer, default=0)
+    submitted_at = Column(DateTime, default=datetime.utcnow)
 
 class StudyRoomMessage(Base):
     __tablename__ = "study_room_messages"
